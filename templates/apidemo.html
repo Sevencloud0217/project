@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}
+    apidemo
+{% endblock %}
+
+{% block label %}
+    api demo
+{% endblock %}
+
+{% block style %}
+
+{% endblock %}
+{% block content %}
+
+{% endblock %}
+
+{% block script %}
+    <script src="/static/vendor/jquery/jquery.min.js/"></script>
+    <script>
+    $.ajax({
+        url:"/Api/v1/leave/",
+        type:"get",
+        data:"",
+        success:function (data) {
+            console.log(data)
+        },
+        error:function (error) {
+            console.log(error)
+        }
+    })
+    </script>
+{% endblock %}

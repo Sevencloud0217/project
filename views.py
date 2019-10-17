@@ -5,6 +5,7 @@ from test import MyData
 from settings import *
 import functools
 from flask import session
+from main import csrf
 # session['key'] = 'value'
 # app=Flask(__name__)
 from main import app
@@ -47,6 +48,7 @@ def index():
     data = UserInfo.query.get(4)
 
     return render_template('index.html',**locals())
+
 @app.route("/userinfo/")
 @LoginValid
 def userinfo():
@@ -55,7 +57,10 @@ def userinfo():
     result =obj.get_date()
     return render_template('userinfo.html',**locals())
 
+
+@csrf.exempt
 @app.route("/login/",methods=['post','get'])
+
 def login():
     error=''
     if request.method == "POST":
@@ -92,7 +97,7 @@ def login():
 #         user.save()
 #     # return render_template('register.html')
 #     return '注册成功'
-
+@csrf.exempt
 @app.route("/register/",methods=['post','get'])
 def register():
     error= ""
@@ -180,7 +185,7 @@ def testget():
     name=request.form.get('name',None)
     print(name)
     return render_template('testget.html')
-
+@csrf.exempt
 @app.route('/leave_list/',methods=['post','get'])
 @LoginValid
 def leave_list():
@@ -203,9 +208,12 @@ def leave_list():
         leave.request_status = 0  # 请假状态
         print(data)
         leave.save()
-    return render_template('leave_list.html')
+        return redirect("/leave_all_list/1")
+    return render_template('leave_list.html',**locals())
 from sdk.pager import Pager
+
 @app.route('/leave_all_list/<int:page>',methods=['post','get'])
+@csrf.exempt
 @LoginValid
 def leave_all_list(page):
     leave = Leave.query.filter(Leave.request_id == request.cookies.get("user_id")).all()
@@ -216,6 +224,7 @@ def leave_all_list(page):
 
 from flask import jsonify
 @app.route("/chexiao/",methods=['get','post'])
+@csrf.exempt
 def chexiao():
     id = request.form.get("id")
 
@@ -247,11 +256,132 @@ def add_task():
         else:
             error = task.errors
             print(error)
-
-
     print(error)
-
     return render_template('add_task.html',**locals())
+
+from main import api
+from flask_restful import Resource
+
+@api.resource("/Api/v1/leave/")
+class LeaveApi(Resource):
+    def __init__(self):
+        self.result={
+            "method": "get",
+            "version": "v1",
+            "data": "",
+        }
+    def create_data(self,leave):
+        """
+        定义返回的数据
+        :return:
+        """
+        result_data = {
+            "request_id": leave.request_id,
+            "request_name": leave.request_name,
+            "request_type": leave.request_type,
+            "request_number": leave.request_number,
+            "request_phone": leave.request_phone,
+            "request_status": leave.request_status,
+            "request_start": str(leave.request_start),
+            "request_end": str(leave.request_end),
+            "request_description": leave.request_description,
+        }
+        return result_data
+    def get(self):
+        """
+            处理get请求
+            :return:
+        """
+
+        data = request.args
+        id = data.get("id")
+        print(id)
+        result_data = {}
+        if id:
+            leave = Leave.query.get(int(id))
+            print(leave)
+            if leave is not None:
+                result_data = self.create_data(leave)
+
+
+        else:
+            leaves = Leave.query.all()
+            result_data = []
+            for leave in leaves:
+                info = self.create_data(leave)
+                result_data.append(info)
+        self.result["data"] = result_data
+        return jsonify(self.result)
+    def post(self):
+        """
+        处理post请求
+        :return:
+        """
+        data = request.form
+        leave =Leave()
+        leave.request_id = data.get("request_id")
+        leave.request_name= data.get("request_name")
+        leave.request_type= data.get("request_type")
+        leave.request_start= data.get("request_start")
+        leave.request_end= data.get("request_end")
+        leave.request_description= data.get("request_description")
+        leave.request_phone= data.get("request_phone")
+        leave.request_number= data.get("request_number")
+        leave.request_status= data.get("request_number")
+        leave.save()
+        self.result["method"]="post"
+        self.result['data']=self.create_data(leave)
+        return jsonify(self.result)
+    def put(self):
+        """
+        处理put请求
+        :return:
+        """
+        # data = request.form
+        #         # id = data.get("id")
+        #         # leave = Leave.query.get(id)
+        #         # leave.request_id = data.get("request_id")
+        #         # leave.request_name = data.get("request_name")
+        #         # leave.request_type = data.get("request_type")
+        #         # leave.request_start = data.get("request_start")
+        #         # leave.request_end = data.get("request_end")
+        #         # leave.request_description = data.get("request_description")
+        #         # leave.request_phone = data.get("request_phone")
+        #         # leave.request_number = data.get("request_number")
+        #         # leave.request_status = data.get("request_number")
+        #         # leave.merge()
+        data = request.form   ##字典
+        id = data.get("id")
+        leave = Leave.query.get(id)
+        for key,value in data.items():
+            if key != "id":
+                if hasattr(leave,key):
+                    setattr(leave,key,value)
+        leave.merge()
+        self.result["method"] = "put"
+        self.result['data'] = self.create_data(leave)
+
+        return jsonify(self.result)
+
+    def delete(self):
+        """
+        处理delete请求
+        :return:
+        """
+        data = request.form
+        id = data.get("id")
+        leave = Leave.query.get(id)
+        leave.delete()
+        self.result["method"] = "delete"
+        self.result['data'] = self.create_data(leave)
+        self.result['msg'] = "删除成功"
+        return jsonify(self.result)
+
+@app.route('/apidemo/')
+def apidemo():
+
+    return render_template('apidemo.html')
+
 if __name__ == '__main__':
 
     app.run(debug=True)

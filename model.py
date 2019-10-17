@@ -19,6 +19,7 @@ class UserInfo(BaseModel):
     name =db.Column(db.String(32))
     time = db.Column(db.DATETIME,default=datetime.now())
     age =db.Column(db.Integer)
+    sex = db.Column(db.Integer)
 auto_now = True
 class User(BaseModel):
     __tablename__='user'
